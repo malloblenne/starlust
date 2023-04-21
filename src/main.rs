@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::camera::ScalingMode};
 use bevy_rapier3d::prelude::*;
 
 //use std::f32::consts::PI;
-
+// https://bevy-cheatbook.github.io/cookbook/pan-orbit-camera.html
 
 #[derive(Component)]
 struct Player;
@@ -16,7 +16,24 @@ struct MovableCamera;
 
 #[derive(Component)]
 struct VelocityCustom{x: f32}
+/// Tags an entity as capable of panning and orbiting.
+#[derive(Component)]
+struct PanOrbitCamera {
+    /// The "focus point" to orbit around. It is automatically updated when panning the camera
+    pub focus: Vec3,
+    pub radius: f32,
+    pub upside_down: bool,
+}
 
+impl Default for PanOrbitCamera {
+    fn default() -> Self {
+        PanOrbitCamera {
+            focus: Vec3::ZERO,
+            radius: 5.0,
+            upside_down: false,
+        }
+    }
+}
 
 fn populate_world(mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -77,12 +94,20 @@ fn populate_world(mut commands: Commands,
     //     transform: Transform::from_xyz(5.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
     //     ..default()
     // });
+    let translation = Vec3::new(-2.0, 2.5, 5.0);
+    let radius = translation.length();
 
     commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-3.0, 3.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-        
+        //transform: Transform::from_xyz(-3.0, 3.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_translation(translation)
+        .looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
-    }, MovableCamera));
+    },
+    PanOrbitCamera {
+        radius,
+        ..Default::default()
+    },
+    MovableCamera));
 
     /* Create the ground. */
     commands
@@ -107,13 +132,13 @@ fn populate_world(mut commands: Commands,
             angvel: Vec3::new(0.2, 0.0, 0.0),
         })
         .insert(GravityScale(0.0))
+        .insert(Damping { linear_damping: 0.5, angular_damping: 1.0 })
         .insert(Sleeping::disabled());
 
         commands
         .spawn(RigidBody::Dynamic)
         .insert((Collider::ball(0.5),
-        TransformBundle::from(Transform::from_xyz(-5.0, 3.0, 0.0)),
-        Player))
+        TransformBundle::from(Transform::from_xyz(-5.0, 3.0, 0.0))))
         .insert(Restitution::coefficient(1.0))
         // .insert(Velocity {
         //     linvel: Vec3::new(0.0, 0.0, 0.0),
@@ -132,9 +157,14 @@ impl Plugin for StarLustPlugin {
         //app.insert_resource(GreetTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         //app.insert_resource(ClearColor(Color::BLACK))
         app.add_startup_system(populate_world)
-        .add_system(move_player)
-        .add_system(move_camera)
-        .add_system(print_ball_altitude);
+        .add_systems(
+            (
+                move_player,
+                //.add_system(move_camera)
+                sync_player_camera.after(move_player)
+            )
+        );
+        //.add_system(print_ball_altitude);
             //.add_system(hello_world)
             //.add_system(greet_people);
     }
@@ -211,6 +241,21 @@ fn print_ball_altitude(positions: Query<&Transform, With<RigidBody>>) {
     }
 }
 
+// https://www.reddit.com/r/bevy/comments/128q8ps/beginner_question_have_orbit_camera_follow_player/
+fn sync_player_camera(
+    player: Query<&Transform, With<Player>>,
+    mut camera: Query<(&mut PanOrbitCamera, &mut Transform), Without<Player>>,
+) {
+    let Ok(player) = player.get_single() else { return };
+    let Ok((mut camera, mut camera_transform)) = camera.get_single_mut() else { return };
+
+    let delta = player.translation - camera.focus;
+
+    if delta != Vec3::ZERO {
+        camera.focus = player.translation;
+        camera_transform.translation += delta;
+    }
+}
     
 fn main() {
     App::new()
