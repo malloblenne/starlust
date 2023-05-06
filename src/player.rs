@@ -4,10 +4,12 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 pub fn spawn_player(commands: &mut Commands) {
+    let radius = 0.5;
+
     commands
         .spawn(RigidBody::Dynamic)
         .insert((
-            Collider::ball(0.5),
+            Collider::ball(radius),
             TransformBundle::from(Transform::from_xyz(1.0, 2.0, 0.0)),
             Player,
         ))
@@ -24,7 +26,7 @@ pub fn spawn_player(commands: &mut Commands) {
         .insert(Sleeping::disabled());
 }
 
-pub fn move_player(
+pub fn control_player(
     input: Res<Input<KeyCode>>,
     time: Res<Time>,
     mut query: Query<(&mut Transform, &mut Velocity), With<Player>>,

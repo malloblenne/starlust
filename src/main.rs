@@ -4,11 +4,8 @@ pub mod camera_handling;
 pub mod common_components;
 pub mod player;
 
-use crate::camera_handling::move_camera;
-use crate::camera_handling::spawn_camera;
-use crate::camera_handling::sync_player_camera;
-use crate::player::move_player;
-use crate::player::spawn_player;
+use crate::camera_handling::{move_camera, spawn_camera, sync_player_camera};
+use crate::player::{control_player, spawn_player};
 
 #[derive(Component)]
 struct VelocityCustom {
@@ -94,9 +91,9 @@ impl Plugin for StarLustPlugin {
         //app.insert_resource(GreetTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         //app.insert_resource(ClearColor(Color::BLACK))
         app.add_startup_system(populate_world).add_systems((
-            move_player,
-            move_camera.after(move_player),
-            sync_player_camera.after(move_player),
+            control_player,
+            move_camera.after(control_player),
+            sync_player_camera.after(control_player),
         ));
         //.add_system(print_ball_altitude);
         //.add_system(hello_world)
